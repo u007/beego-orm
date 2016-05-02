@@ -20,20 +20,20 @@ func GetTimeZone() (name string, offset int) {
 	return time.Now().In(time.Local).Zone()
 }
 
-func LoadDatabase() Orm, error {
+func LoadDatabase() error {
 	Debug("Time zone: %s, offset: %d", local_zone, local_offset)
 	
   if (err != nil) {
     err_res := fmt.Errorf("database config missing? %s", config_file)
     Error(err_res.Error())
-    return nil, err_res
+    return err_res
   }
   
   if !CheckRequired("driver", "user", "host", "encoding", "db", "pass", "connection_pool") {
-    return nil, fmt.Errorf("Required configuration missing")
+    return fmt.Errorf("Required configuration missing")
   }
 	if time_zone == "" {
-		return nil, fmt.Errorf("Required time_zone in conf/app.conf")
+		return fmt.Errorf("Required time_zone in conf/app.conf")
 	}
   
 	connection_string := fmt.Sprintf("%s:%s@%s/%s?charset=%s&loc=%s",
@@ -60,7 +60,7 @@ func LoadDatabase() Orm, error {
   if (config.Boolean(mode, "debug", false)) {
     orm.Debug = true
   }
-  return orm, nil
+  return nil
 }
 
 func CheckRequired(args ...string) bool {
