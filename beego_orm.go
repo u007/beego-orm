@@ -5,6 +5,7 @@ import (
 	// "github.com/astaxie/beego/config"
 	"github.com/u007/go_config"
   "github.com/astaxie/beego/orm"
+	"github.com/astaxie/beego/validation"
   _ "github.com/go-sql-driver/mysql"
 	"fmt"
 	"time"
@@ -61,6 +62,14 @@ func LoadDatabase() error {
     orm.Debug = true
   }
   return nil
+}
+
+func LogValidationErrors(log_prefix string, valid *validation.Validation) {
+	if valid.HasErrors() {
+    for _, err := range valid.Errors {
+			Error("[ %s ]Validation %s: %s", log_prefix, err.Key, err.Message)
+    }
+  }
 }
 
 func CheckRequired(args ...string) bool {

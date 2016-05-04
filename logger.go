@@ -3,7 +3,7 @@ package beego_orm
 import (
 	"github.com/astaxie/beego"
 	"fmt"
-	"runtime/debug"
+	// "runtime/debug"
 )
 
 const PREFIX = "[ ORM ] "
@@ -16,5 +16,5 @@ func Warning(format string, v... interface{}) {
 }
 func Error(format string, v... interface{}) {
 	beego.Error(fmt.Sprintf(PREFIX + format, v...))
-	debug.PrintStack()
+	// debug.PrintStack()
 }
