@@ -7,6 +7,7 @@ import (
   "github.com/astaxie/beego/orm"
 	"github.com/astaxie/beego/validation"
   _ "github.com/go-sql-driver/mysql"
+	"net/url"
 	"fmt"
 	"time"
 )
@@ -25,9 +26,7 @@ func LoadDatabase() error {
 	Debug("Time zone: %s, offset: %d", local_zone, local_offset)
 	
   if (err != nil) {
-    err_res := fmt.Errorf("database config missing? %s", config_file)
-    Error(err_res.Error())
-    return err_res
+    return err
   }
   
   if !CheckRequired("driver", "user", "host", "encoding", "db", "pass", "connection_pool") {
@@ -36,16 +35,19 @@ func LoadDatabase() error {
 	if time_zone == "" {
 		return fmt.Errorf("Required time_zone in conf/app.conf")
 	}
-  
-	connection_string := fmt.Sprintf("%s:%s@%s/%s?charset=%s&loc=%s",
+  port := config.Int(mode, "port", 3306)
+	connection_string := fmt.Sprintf("%s:%s@tcp(%s:%d)/%s?charset=%s&loc=%s",
     config.String(mode, "user", ""), config.String(mode, "pass", ""),
-    config.String(mode, "host", ""), config.String(mode, "db", ""), 
+    config.String(mode, "host", ""), port, config.String(mode, "db", ""), 
     config.String(mode, "encoding", ""),
-    time_zone)
+    url.QueryEscape(time_zone))
 	
-	// Debug("Connection: %s", connection_string)
-  orm.RegisterDriver(config.String(mode, "driver", ""), orm.DRMySQL)
-  orm.RegisterDataBase("default", config.String(mode, "driver", ""), 
+	driver := config.String(mode, "driver", "")
+	Debug("Driver: %s, Connection: %s", driver, connection_string)
+	if (driver == "mysql") {
+		orm.RegisterDriver(config.String(mode, "driver", ""), orm.DRMySQL)
+	}
+  orm.RegisterDataBase("default", driver, 
     connection_string,
     5, config.Int(mode, "connection_pool", 0))
   
