@@ -7,6 +7,7 @@ import (
   "github.com/astaxie/beego/orm"
 	"github.com/astaxie/beego/validation"
   _ "github.com/go-sql-driver/mysql"
+	"strings"
 	"net/url"
 	"fmt"
 	"time"
@@ -14,26 +15,28 @@ import (
 
 var config_file = "conf/database.conf"
 var config, err      = go_config.NewConfigLoader("ini", config_file)
-var mode        = beego.AppConfig.DefaultString("runmode", "dev")
+var mode        		 = beego.BConfig.RunMode
 var local_zone, local_offset = GetTimeZone()
-var time_zone   = beego.AppConfig.DefaultString("time_zone", local_zone)
+var time_zone   		= beego.AppConfig.DefaultString("time_zone", local_zone)
 
 func GetTimeZone() (name string, offset int) {
 	return time.Now().In(time.Local).Zone()
 }
 
-func LoadDatabase() error {
-	Debug("Time zone: %s, offset: %d", local_zone, local_offset)
-	
-  if (err != nil) {
-    return err
+func DatabaseDriver() (string) {
+	return config.String(mode, "driver", "")
+}
+
+func DatabaseConnectionString() (string, error) {
+	if (err != nil) {
+    return "", err
   }
-  
-  if !CheckRequired("driver", "user", "host", "encoding", "db", "pass", "connection_pool") {
-    return fmt.Errorf("Required configuration missing")
+  needed := []string{"driver", "user", "host", "encoding", "db", "pass", "connection_pool"}
+  if !CheckRequired(needed...){
+    return "", fmt.Errorf("Required configuration missing: %s in %s", strings.Join(needed, ", "), config_file)
   }
 	if time_zone == "" {
-		return fmt.Errorf("Required time_zone in conf/app.conf")
+		return "", fmt.Errorf("Required time_zone in conf/app.conf")
 	}
   port := config.Int(mode, "port", 3306)
 	connection_string := fmt.Sprintf("%s:%s@tcp(%s:%d)/%s?charset=%s&loc=%s",
@@ -41,9 +44,18 @@ func LoadDatabase() error {
     config.String(mode, "host", ""), port, config.String(mode, "db", ""), 
     config.String(mode, "encoding", ""),
     url.QueryEscape(time_zone))
-	
-	driver := config.String(mode, "driver", "")
+	return connection_string, nil
+}
+
+func LoadDatabase() error {
+	Debug("Time zone: %s, offset: %d", local_zone, local_offset)
+	connection_string, err  := DatabaseConnectionString()
+	if (err != nil) {
+		return err
+	}
+	driver := DatabaseDriver()
 	Debug("Driver: %s, Connection: %s", driver, connection_string)
+	
 	if (driver == "mysql") {
 		orm.RegisterDriver(config.String(mode, "driver", ""), orm.DRMySQL)
 	}
@@ -51,7 +63,6 @@ func LoadDatabase() error {
     connection_string,
     5, config.Int(mode, "connection_pool", 0))
   
-	
 	// files, _ := ioutil.ReadDir("models")
   // for _, f := range files {
 	// 	Debug("model: %s", f.Name())
@@ -77,7 +88,9 @@ func LogValidationErrors(log_prefix string, valid *validation.Validation) {
 func CheckRequired(args ...string) bool {
   for _, name := range args {
     if (config.String(mode, name, "") == "") {
-      Error("%s required in %s", name, config_file)
+			err := fmt.Errorf("[ ERROR ] env: %s, %s required in %s", mode, name, config_file)
+			Error(err.Error())
+			fmt.Println(err.Error())
       return false
     }
   }
